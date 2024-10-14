@@ -1,0 +1,86 @@
+---
+title: "NYPD Shooting Incidents Project Analysis"
+date: "2024-10-09"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction
+In this report, statistics from shooting incidents within New York City will be imported, tidied, and analyzed. Data was provided by the NYPD/ City of New York website and includes a wide array of data points, all of which can be seen in a summary below. The two main questions that will be answered are whether the borough in which the incident occurred or the race of the victims have a large impact on overall incidence and mortality rates.
+
+## Data Manipulation
+
+We first will add the necessary libraries.
+
+```{r setup2, echo=TRUE, message=FALSE}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+
+Next, we will input the data from the City of New York's website
+
+```{r input}
+nypd_shootings <- read_csv("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv")
+```
+
+After that, we will remove all data that we don't want and change changes dates and times into objects.
+
+```{r manipulation}
+nypd_shootings <- nypd_shootings %>%
+  mutate(OCCUR_DATE = mdy(OCCUR_DATE),
+         OCCUR_TIME = hms(OCCUR_TIME)) %>%
+  select(-c(INCIDENT_KEY, LOC_OF_OCCUR_DESC, PRECINCT, JURISDICTION_CODE, LOC_CLASSFCTN_DESC, LOCATION_DESC, X_COORD_CD, Y_COORD_CD, Latitude, Longitude, Lon_Lat,)) %>%
+  rename( MURDER_OCCURED = `STATISTICAL_MURDER_FLAG` )
+
+summary(nypd_shootings)
+```
+
+## Data Visualizations
+
+After cleaning our data, we can manipulate it further to group statistics by borough that we are interested in. By calculating the deaths per incident in each borough, we can come to the conclusion that Staten Island has the most deadly shooting incidents (while also having the fewest incidents in total). We can also see that Manhattan has the least deadly shooting incidents, while having considerably more overall. This leads to the question- which borough is actually safest? With the data here, an argument could be made for either, but other statistics could sway that perception greatly- maybe to even one of the others boroughs completely.
+
+```{r boroughs}
+boro_stats <- nypd_shootings %>%
+  group_by(BORO) %>%
+  summarize(incidents = n(), deaths = sum(MURDER_OCCURED==TRUE)) %>%
+  mutate(death_percentage = (deaths / incidents * 100))
+
+ggplot(data=boro_stats, aes(x=BORO, y=incidents, fill = death_percentage)) + 
+geom_bar(stat="identity") + scale_fill_gradient(low="green", high="red") + 
+geom_text(aes(label = death_percentage), size = 3, hjust = 0.5, vjust = 3, position = "stack")
+```
+
+In another visualization, we look at deaths and incident statistics based on the victim's race. By looking at the data broken into each victim race group, we can see that black individuals are the most common victims. However, white and Asian individuals are more likely to be fatally wounded when shot. Why does this occur? What effects do population and cultural/societal impacts have on this data? Could it be misleading at all? We could certainly add more to this data set and find out. 
+```{r race}
+victim_race_stats <- nypd_shootings %>%
+  group_by(VIC_RACE) %>%
+  filter(VIC_RACE != 'UNKNOWN' & VIC_RACE != 'AMERICAN INDIAN/ALASKAN NATIVE' ) %>%
+  summarize(incidents = n(), deaths = sum(MURDER_OCCURED==TRUE)) %>%
+  mutate(death_percentage = (deaths / incidents * 100))
+
+victim_race_stats[victim_race_stats == "ASIAN / PACIFIC ISLANDER"] <- "ASIAN"
+
+ggplot(data=victim_race_stats, aes(x=VIC_RACE, y=incidents, fill = death_percentage)) + 
+geom_bar(stat="identity") + scale_fill_gradient(low="green", high="red") + 
+geom_text(aes(label = death_percentage), size = 3, hjust = 0.5, vjust = 3, position = "stack")
+```
+
+## Data Models
+
+Here, we can make a model that predicts the the likely amount of deaths per incidents for each borough. The model proves to be quite accurate, with the greatest variances coming from the two boroughs we questioned most in our first analysis. Even though Manhattan and Staten Island have the greatest variance from our predicted model, they still are quite close (within two percent) of their expected value. Given this, I would say that boroughs do not have a large impact on deadliness of incidents in New York City.
+
+```{r model}
+mod <- lm(death_percentage ~ incidents, data = boro_stats)
+boro_stats_w_pred <- boro_stats %>% mutate(pred = predict(mod))
+
+boro_stats_w_pred 
+
+```
+## Bias and Conlusion
+
+In this data, there are quite a few possible sources of bias. To start, the data is sourced from the NYPD who know these statistics will be looked upon by many. Given this, it is certainly possible that they could misrepresent certain data points. Two that come to mind are the shootings that involve NYPD members and shootings that involve friends and family of the recorders. In each case, the officers recording the data could have personal bias that could skew data. Another source of bias here would be the data interpreter (me). I am a white male from a small town, so I could have a narrow view when it comes to interpreting opinions about a large, diverse city. Regardless, I tried my best to broaden my head space when looking through the data and not let my personal bias effect my analysis.
+
+To conclude, It would appear that while boroughs and victim's races greatly impacted the number of incidents, neither strongly affected the mortality rates in these instances.
