@@ -1,0 +1,7 @@
+services:
+  nfl:
+    build: .
+    volumes:
+      - .:/app        # mounts your local folder into the container
+                      # so data/ and outputs/ are saved on your machine
+    command: uv run python 01_load_data.py   # change this to run different scripts

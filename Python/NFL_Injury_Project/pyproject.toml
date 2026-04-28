@@ -1,0 +1,20 @@
+[project]
+name = "nfl-injury-project"
+version = "0.1.0"
+description = "Red Zone Risk: Forecasting NFL Player Injury Likelihood"
+requires-python = ">=3.11"
+dependencies = [
+    "nflreadpy",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "xgboost",
+    "imbalanced-learn",
+    "polars",
+    "pyarrow",
+]
+
+[tool.uv]
+dev-dependencies = []
